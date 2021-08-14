@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">My Application</string>
+    <string name="no_one_is_here">No one is here</string>
+    <string name="loading_next_page">Loading next page</string>
+</resources>

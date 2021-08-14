@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -16,12 +17,11 @@ import com.google.android.material.snackbar.Snackbar;
 
 
 public class MainActivity extends AppCompatActivity {
-    private static final String TAG = "MainActivity";
+    private static final String TAG = "PullRefreshMainActivity";
 
     SwipeRefreshLayout swipeRefreshLayout;
-    RecyclerView listView;
+    RecyclerView recyclerView;
     TextView txtEmptyList, txtLoading;
-
 
     PersonAdapter personAdapter;
     DataSource dataSource;
@@ -41,14 +41,14 @@ public class MainActivity extends AppCompatActivity {
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         txtEmptyList = findViewById(R.id.txtEmpty);
         txtLoading = findViewById(R.id.txtLoaing);
-        listView = findViewById(R.id.listView);
+        recyclerView = findViewById(R.id.listView);
     }
 
     private void bindDataAndListeners() {
         dataSource = new DataSource();
-        listView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
         personAdapter = new PersonAdapter();
-        listView.setAdapter(personAdapter);
+        recyclerView.setAdapter(personAdapter);
 
         swipeRefreshLayout.setOnRefreshListener(this::refreshData);
 
@@ -56,35 +56,43 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
-                Log.d(TAG, "onScrolled: ");
                 LinearLayoutManager linearLayoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
-                if (linearLayoutManager != null && linearLayoutManager.findLastCompletelyVisibleItemPosition() == personAdapter.getItemCount() - 1 && next != null) {
-                    loadMoreData();
+                if (linearLayoutManager != null && linearLayoutManager.findLastCompletelyVisibleItemPosition() == personAdapter.getItemCount() - 1) {
+                    if(next!=null) {
+                        loadMoreData();
+                    }
+                    else  {
+                        Toast.makeText(MainActivity.this, "No More Data", Toast.LENGTH_SHORT).show();
+                    }
                 }
 
             }
         };
 
-        listView.addOnScrollListener(onScrollListener);
+        recyclerView.addOnScrollListener(onScrollListener);
     }
 
     private void refreshData() {
-        next = null;
+        Log.d(TAG, "refreshData: ");
         getData(true);
     }
 
     private void loadMoreData() {
-        Log.d(TAG, "loadMore: ");
-        txtLoading.setVisibility(View.VISIBLE);
+        Log.d(TAG, "loadMoreData: ");
         getData(false);
     }
 
     private void getData(boolean isRefresh) {
         if (isLoading) {
+            if (isRefresh) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
             return;
         }
         if (!isRefresh) {
             txtLoading.setVisibility(View.VISIBLE);
+        } else {
+            next = null;
         }
         isLoading = true;
         dataSource.fetch(next, ((fetchResponse, fetchError) -> {
@@ -95,9 +103,12 @@ public class MainActivity extends AppCompatActivity {
             if (fetchResponse != null) {
                 next = fetchResponse.getNext();
                 personAdapter.addItems(isRefresh, fetchResponse.getPeople());
-                //listView.scrollToPosition(personAdapter.getItemCount() - fetchResponse.getPeople().size());
+                Log.d(TAG, "getData: Success count " + fetchResponse.getPeople().size());
+                Log.d(TAG, "getData: next : " + next);
+                recyclerView.scrollBy(0,30);
             } else {
-                Snackbar snackbar = Snackbar.make(listView, fetchError.getErrorDescription(), Snackbar.LENGTH_LONG);
+                Log.d(TAG, "getData: Fail" + fetchError.getErrorDescription());
+                Snackbar snackbar = Snackbar.make(recyclerView, fetchError.getErrorDescription(), Snackbar.LENGTH_LONG);
                 snackbar.setAction(isRefresh ? "Refresh" : "Try again", view -> {
                     if (isRefresh) {
                         swipeRefreshLayout.setRefreshing(true);
